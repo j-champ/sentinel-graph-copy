@@ -106,6 +106,9 @@ class SentinelInferencePipeline:
         if sequence.shape != (10, 24):
             raise ValueError(f"Expected sequence of shape (10, 24), got {sequence.shape}")
 
+        # Input sanitization: ensure no NaN or infinite values propagate to models
+        sequence = np.nan_to_num(sequence, nan=0.0, posinf=0.0, neginf=0.0)
+
         # Normalization
         seq_norm = (sequence - self.mean_24) / self.scale_24
         tensor_in = torch.tensor(seq_norm[np.newaxis, :, :], dtype=torch.float32).to(self.device)

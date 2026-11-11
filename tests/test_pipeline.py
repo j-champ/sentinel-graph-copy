@@ -91,6 +91,37 @@ class TestSentinelInferencePipeline(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.pipeline.predict_states_dataframe(df_invalid)
 
+    def test_nan_input_sanitization(self):
+        # Input sequence containing NaNs and Infs should be sanitized without crashing
+        corrupt_seq = np.zeros((10, 24), dtype=np.float32)
+        corrupt_seq[2, 5] = np.nan
+        corrupt_seq[4, 10] = np.inf
+        corrupt_seq[6, 15] = -np.inf
+
+        result = self.pipeline.predict_sequence(corrupt_seq)
+        self.assertIn("forecast_horizons", result)
+        h30 = result["forecast_horizons"]["30s_ahead"]
+        self.assertFalse(np.isnan(h30), "Prediction must not contain NaN after sanitization")
+        self.assertGreaterEqual(h30, 0.0)
+        self.assertLessEqual(h30, 1.0)
+
+    def test_api_server_health_safe_when_uninitialized(self):
+        import src.api.server as srv
+        original_pipeline = srv.PIPELINE
+        try:
+            srv.PIPELINE = None
+            # Check models_loaded safety logic
+            models_loaded = {
+                "lstm_recurrent": (srv.PIPELINE.lstm is not None) if srv.PIPELINE else False,
+                "xgboost_booster": (srv.PIPELINE.xgb_bst is not None) if srv.PIPELINE else False,
+                "standard_scaler": (srv.PIPELINE.scaler is not None) if srv.PIPELINE else False,
+            }
+            self.assertFalse(models_loaded["lstm_recurrent"])
+            self.assertFalse(models_loaded["xgboost_booster"])
+            self.assertFalse(models_loaded["standard_scaler"])
+        finally:
+            srv.PIPELINE = original_pipeline
+
 
 class TestTemporalModelArchitecture(unittest.TestCase):
     def test_recurrent_forecaster_output_shapes(self):

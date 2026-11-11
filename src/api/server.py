@@ -43,9 +43,9 @@ class SentinelRequestHandler(BaseHTTPRequestHandler):
                 "system": "SentinelGraph Attack Forecasting MVP",
                 "device": PIPELINE.device if PIPELINE else "uninitialized",
                 "models_loaded": {
-                    "lstm_recurrent": PIPELINE.lstm is not None,
-                    "xgboost_booster": PIPELINE.xgb_bst is not None,
-                    "standard_scaler": PIPELINE.scaler is not None,
+                    "lstm_recurrent": (PIPELINE.lstm is not None) if PIPELINE else False,
+                    "xgboost_booster": (PIPELINE.xgb_bst is not None) if PIPELINE else False,
+                    "standard_scaler": (PIPELINE.scaler is not None) if PIPELINE else False,
                 }
             })
         elif self.path == "/metrics":
