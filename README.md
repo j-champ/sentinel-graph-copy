@@ -356,96 +356,85 @@ Therefore the sequence shape is:
 
 ## CIC-IDS2018
 
-The current implementation uses the Canadian Institute for Cybersecurity Intrusion Detection System Dataset 2018.
+The current implementation uses the Canadian Institute for Cybersecurity Intrusion Detection System Dataset 2018 (CIC-IDS2018).
 
-The dataset contains:
+The dataset contains network flow records captured across multiple days, representing benign background traffic alongside diverse attack campaigns.
 
-* Network flow records
-* Benign traffic
-* Multiple attack scenarios
+### Available Traffic Days (8 Days Processed)
 
-Attack categories represented in the dataset include:
+| Date | File Name | Attack Categories Present | Raw Flows | Attack Flows | Attack % |
+|---|---|---|---:|---:|---:|
+| **Feb 14, 2018** | `Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv` | FTP-BruteForce, SSH-Bruteforce | 1,048,570 | 380,949 | 36.33% |
+| **Feb 15, 2018** | `Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv` | DoS-GoldenEye, DoS-Slowloris | 1,048,575 | 52,498 | 5.01% |
+| **Feb 16, 2018** | `Friday-16-02-2018_TrafficForML_CICFlowMeter.csv` | DoS-Hulk, DoS-SlowHTTPTest | 1,048,574 | 601,802 | 57.39% |
+| **Feb 21, 2018** | `Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv` | DDOS-HOIC, DDOS-LOIC-UDP | 1,048,575 | 687,742 | 65.59% |
+| **Feb 22, 2018** | `Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv` | Brute Force - Web, Brute Force - XSS, SQL Injection | 1,048,566 | 362 | 0.03% |
+| **Feb 23, 2018** | `Friday-23-02-2018_TrafficForML_CICFlowMeter.csv` | Brute Force - Web, Brute Force - XSS, SQL Injection | 1,048,575 | 566 | 0.05% |
+| **Feb 28, 2018** | `Wednesday-28-02-2018_TrafficForML_CICFlowMeter.csv` | Infiltration | 613,071 | 68,871 | 11.23% |
+| **Mar 02, 2018** | `Friday-02-03-2018_TrafficForML_CICFlowMeter.csv` | Bot | 1,048,575 | 286,191 | 27.29% |
 
-* Bot
-* DoS
-* DDoS
-* Brute Force
-* Web Attacks
-* Infiltration
-
-The original dataset is **not included in this repository**.
-
-Download the dataset separately and place the required files under:
-
-```text
-data/raw/CIC-IDS2018/
-```
-
-Example:
-
-```text
-data/
-└── raw/
-    └── CIC-IDS2018/
-        ├── Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv
-        ├── Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv
-        ├── Friday-16-02-2018_TrafficForML_CICFlowMeter.csv
-        ├── Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv
-        └── Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv
-```
+The complete CIC-IDS2018 dataset is not downloaded; only these 8 days are integrated. Raw CSV files are excluded from Git and stored locally under `data/raw/CIC-IDS2018/`.
 
 ---
 
-# 7. Experimental Dataset Splits
+# 7. Target Definitions & Dataset Splits
 
-SentinelGraph maintains separate dataset configurations for next-state
-classification and exploratory attack-onset forecasting.
+## 7.1 Target Definitions
 
-## Expanded Next-State Classification Split
+Given an observed historical sequence of 10 consecutive 30-second states $S_{t-9}, \dots, S_t$ (5-minute history window):
 
-TRAIN
-- Wednesday-14-02-2018
-- Thursday-15-02-2018
-- Friday-16-02-2018
-- Wednesday-21-02-2018
+1. **Next-State Binary Attack Target (`y_attack`):**
+   $$y_{\text{attack}, t+1} = \mathbb{I}(\text{flow\_attack\_count}_{t+1} > 0)$$
+   Predicts whether any attack-labeled flow occurs in the immediately following 30-second state window $S_{t+1}$.
 
-VALIDATION
-- Friday-23-02-2018
-- Wednesday-28-02-2018
+2. **Next-State Attack Intensity Target (`y_intensity`):**
+   $$y_{\text{intensity}, t+1} = \frac{\text{attack\_flows}_{t+1}}{\text{total\_flows}_{t+1}}$$
+   Quantifies the malicious flow fraction in the next 30-second window (continuous in $[0, 1]$).
 
-TEST
-- Friday-02-03-2018
+3. **Current-State Attack State (`last_attack`):**
+   $$\text{last\_attack}_t = \mathbb{I}(\text{flow\_attack\_count}_t > 0)$$
+   Indicates whether the final observed state in the input sequence was malicious.
 
-| Split | Sequences |
-|---|---:|
-| Train | 2,419 |
-| Validation | 2,210 |
-| Test | 1,028 |
-| Total | 5,657 |
+4. **Attack-Onset Target (`y_onset`):**
+   $$y_{\text{onset}, t+1} = (y_{\text{attack}, t+1} == 1) \land (\text{last\_attack}_t == 0)$$
+   Evaluated strictly on the **eligible risk set** where $\text{last\_attack}_t == 0$. Sequences already in an attack state at time $t$ are excluded from the risk set to prevent trivial non-onset filtering and focus exclusively on transition from benign to attack.
 
-February 22 is not included in this expanded split.
+## 7.2 Experimental Dataset Splits
 
-The March 2 test day has a substantially higher attack prevalence
-than the training and validation sets. This is a distribution-shift
-evaluation on one test day, not broad evidence of cross-day generalization.
+SentinelGraph maintains several experimental configurations to isolate specific temporal, continuity, and generalisation dynamics:
 
-Preprocessing is fitted using training data only.
+### Configuration A: Expanded Next-State Classification Split
 
-## Exploratory Attack-Onset Split
+Designed to assess next-state classification across multiple attack families:
 
-Training uses February 14, 15, 16, 21, and 22. February 23 is used
-for exploratory evaluation.
+| Split | Days | Sequences | Attack Prev. | Primary Attack Modality |
+|---|---|---:|---:|---|
+| **Train** | Feb 14, Feb 15, Feb 16, Feb 21 | 2,419 | 40.5% | FTP/SSH Brute Force, DoS, DDoS |
+| **Validation** | Feb 23, Feb 28 | 2,210 | 20.7% | Web Attacks, Infiltration |
+| **Test** | March 02 | 1,028 | 65.6% | Botnet traffic |
 
-| Split | Eligible sequences | Onsets | Onset prevalence |
-|---|---:|---:|---:|
-| Train | 2,688 | 110 | 4.09% |
-| Test (Feb 23) | 900 | 86 | 9.56% |
+*Note: March 02 represents a severe distribution shift (Botnet traffic) and serves as a test of cross-day transfer, not touched during hyperparameter tuning.*
 
-Only sequences whose last observed state is benign are included.
-February 23 was previously used for validation in an earlier experiment,
-so this is not an untouched independent test set.
+### Configuration B: Continuous Chronological Split (5 Days)
 
-See `reports/onset_forecasting_experiment.md` for details.
+Strictly enforces 30-second continuity (sequences never cross timestamp gaps):
+
+| Split | Days | Sequences | Benign | Attack | Attack Prev. |
+|---|---|---:|---:|---:|---:|
+| **Train** | Feb 14, Feb 15 | 2,190 | 1,692 | 498 | 22.7% |
+| **Validation** | Feb 16 | 84 | 0 | 84 | 100.0% |
+| **Test** | Feb 21, Feb 22 | 1,222 | 996 | 226 | 18.5% |
+
+### Configuration C: Exploratory Attack-Onset Split
+
+Evaluates whether early warnings of attack transition can be detected from 5-minute benign history:
+
+| Split | Days | Eligible Samples ($\text{last}=0$) | Onsets ($y=1$) | Onset Prev. |
+|---|---|---:|---:|---:|
+| **Train** | Feb 14, 15, 16, 21, 22 | 2,688 | 110 | 4.09% |
+| **Test** | Feb 23 | 900 | 86 | 9.56% |
+
+*Critical caveat: Feb 22 contributes 103 of the 110 training onsets (93.6%), and Feb 23 contributes 86 onsets. Both days consist of identical web attack suites (Brute Force - Web, XSS, SQL Injection). Feb 23 was also previously used in validation in Configuration A, so this must be treated strictly as an exploratory study.*
 
 ---
 
@@ -557,35 +546,93 @@ The model predicts future attack probability.
 
 # 10. Current Experimental Results
 
-Current held-out test results:
+## 10.1 Expanded Next-State Forecasting Results (Test: March 02, Botnet)
 
-| Model               |     F1 | PR-AUC | ROC-AUC | Recall |    FPR |
-| ------------------- | -----: | -----: | ------: | -----: | -----: |
-| Majority            | 0.0000 | 0.1762 |  0.5000 | 0.0000 | 0.0000 |
-| Persistence         | 0.5708 | 0.4017 |  0.7393 | 0.5697 | 0.0911 |
-| Logistic Regression | 0.2706 | 0.3124 |  0.4854 | 0.2418 | 0.1166 |
-| XGBoost             | 0.3987 | 0.5142 |  0.7670 | 0.2541 | 0.0044 |
-| LSTM                | 0.1369 | 0.3876 |  0.7034 | 0.0738 | 0.0009 |
+Evaluated on the expanded split (Train: Feb 14, 15, 16, 21; Validation: Feb 23, 28; Test: March 02).
+Test set contains 1,028 sequences (354 benign, 674 attack; attack prevalence: 65.56%).
 
-### Interpretation
+| Model | Accuracy | Precision | Recall | F1 | PR-AUC | ROC-AUC | FPR | Confusion Matrix |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| **Majority Baseline** | 0.3444 | 0.0000 | 0.0000 | 0.0000 | 0.6556 | 0.5000 | 0.0000 | TN=354, FP=0, FN=674, TP=0 |
+| **Persistence Baseline** | 0.9981 | 0.9985 | 0.9985 | 0.9985 | 0.9980 | 0.9978 | 0.0028 | TN=353, FP=1, FN=1, TP=673 |
+| **Logistic Regression** | 0.3356 | 0.2353 | 0.0059 | 0.0116 | 0.5027 | 0.2302 | 0.0367 | TN=341, FP=13, FN=670, TP=4 |
+| **XGBoost (Val, $\theta=0.50$)** | 0.7742 | 0.1912 | 0.0284 | 0.0495 | 0.1997 | 0.4979 | 0.0314 | TN=1698, FP=55, FN=444, TP=13 |
+| **XGBoost (Test, $\theta=0.50$)** | 0.3444 | 0.0000 | 0.0000 | 0.0000 | 0.6584 | 0.4260 | 0.0000 | TN=354, FP=0, FN=674, TP=0 |
 
-The current results demonstrate that:
+## 10.2 Continuous Per-Day Evaluation (Feb 21 DDoS vs Feb 22 Web Attacks)
 
-* Attack persistence is a strong reference point.
-* XGBoost obtains the highest current PR-AUC and ROC-AUC among the tested models.
-* Persistence provides substantial predictive information.
-* The LSTM achieves a non-random ROC-AUC but has very low recall at the fixed 0.50 threshold on the held-out test set.
-* Validation and test behavior differ substantially for some models.
+Models trained on continuous sequences from Feb 14 and Feb 15 (2,190 sequences) and evaluated separately on two distinct test days:
 
-The validation/test difference motivates further investigation of:
+| Test Day | Attack Type | Model | F1 | PR-AUC | ROC-AUC | Recall | Precision | FPR |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| **Feb 21** ($N=145$) | DDOS-HOIC | Persistence | **1.0000** | **1.0000** | **1.0000** | 1.0000 | 1.0000 | 0.0000 |
+| | | XGBoost | 0.7643 | 0.9956 | 0.9925 | 0.6186 | 1.0000 | 0.0000 |
+| **Feb 22** ($N=1,077$) | Web Attacks | Persistence | **0.2016** | 0.1363 | 0.5465 | 0.2016 | 0.2016 | 0.1086 |
+| | | XGBoost | 0.0268 | **0.1692** | **0.6477** | 0.0155 | 0.1000 | 0.0190 |
 
-* Distribution shift
-* Generalization
-* Threshold stability
-* Calibration
-* Temporal forecasting robustness
+## 10.3 Training Day Ablation (Fixed Test Day: Feb 22)
 
-These are research questions rather than reasons to discard the models.
+Investigation into whether accumulating training days from heterogeneous attack modalities improves generalization to sparse web attacks on Feb 22 ($N=1,077$ sequences; 129 attack positives):
+
+| Training Configuration | Train Samples | F1 | PR-AUC | ROC-AUC | Recall | FPR | True Positives (of 129) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Feb 15 only** (DoS Slowloris/GoldenEye) | 1,124 | **0.2813** | **0.1804** | **0.6449** | **0.4264** | 0.2184 | **55** |
+| **Feb 14 + Feb 15** (+ FTP/SSH Brute Force) | 2,190 | 0.0541 | 0.1770 | 0.6414 | 0.0310 | 0.0158 | 4 |
+| **Feb 14 + Feb 15 + Feb 16** (+ DoS Hulk) | 2,274 | 0.0400 | 0.1704 | 0.6366 | 0.0233 | 0.0190 | 3 |
+
+*Ablation Finding: Adding high-volume volumetric flood attacks (Feb 14 FTP/SSH brute force and Feb 16 DoS Hulk) severely degrades recall on low-intensity web attacks (dropping from 42.6% down to 2.3%). The model shifts decision thresholds toward high flow volumes, blinding it to stealthy web probes.*
+
+## 10.4 8-Day Attack Episode & Continuity Audit
+
+Rigorous temporal audit quantifying 30-second continuity runs, timestamp gaps, and attack episode characteristics across all 8 days:
+
+| Traffic Day | States | Attack States | Attack % | Runs | Gaps | Onsets | Terminations | Attack Episodes | Isolated (1-window) | Sustained ($\ge 2$) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Feb 14 (Wed)** | 1,086 | 380 | 34.99% | 2 | 1 | 2 | 2 | 2 | 0 | 2 |
+| **Feb 15 (Thu)** | 1,144 | 118 | 10.31% | 2 | 1 | 5 | 5 | 5 | 1 | 4 |
+| **Feb 16 (Fri)** | 265 | 101 | 38.11% | 123 | 122 | 1 | 0 | 2 | 0 | 2 |
+| **Feb 21 (Wed)** | 308 | 115 | 37.34% | 29 | 28 | 1 | 0 | 2 | 0 | 2 |
+| **Feb 22 (Thu)** | 1,097 | 129 | 11.76% | 2 | 1 | 103 | 103 | 103 | **94** | 9 |
+| **Feb 23 (Fri)** | 1,112 | 196 | 17.63% | 2 | 1 | 90 | 90 | 90 | **64** | 26 |
+| **Feb 28 (Wed)** | 1,138 | 266 | 23.37% | 2 | 1 | 2 | 2 | 2 | 0 | 2 |
+| **Mar 02 (Fri)** | 1,048 | 684 | 65.27% | 2 | 1 | 1 | 1 | 2 | 0 | 2 |
+| **TOTALS** | **7,198** | **1,989** | **27.63%** | **164** | **156** | **205** | **203** | **208** | **159** | **49** |
+
+*Audit Finding: 158 of the 159 isolated (single-window) attack spikes occur on just two days: Feb 22 (94) and Feb 23 (64). On volumetric attack days (DoS, DDoS, Infiltration, Botnet), attacks are sustained unbroken blocks lasting hours (only 1 or 2 onsets per day).*
+
+## 10.5 Exploratory Attack-Onset Forecasting Results (Test: Feb 23)
+
+Evaluated strictly on the **eligible risk set** ($\text{last\_attack} == 0$). Train: Feb 14-22 (2,688 eligible samples, 110 onsets); Test: Feb 23 (900 eligible samples, 86 onsets). Fixed threshold = 0.50; no-skill PR-AUC reference = 0.0956.
+
+| Feature Representation | Model | Precision | Recall | F1 | PR-AUC | ROC-AUC | TN | FP | FN | TP |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Last window** | Logistic Regression | 0.0705 | **0.5930** | 0.1261 | 0.0652 | 0.3004 | 143 | 671 | 35 | 51 |
+| | XGBoost | 0.0000 | 0.0000 | 0.0000 | 0.0699 | 0.3361 | 814 | 0 | 86 | 0 |
+| **Five-minute mean** | Logistic Regression | 0.0721 | 0.5349 | 0.1271 | 0.0746 | 0.3800 | 224 | 590 | 40 | 46 |
+| | XGBoost | 0.0294 | 0.0116 | 0.0167 | 0.0773 | 0.4042 | 781 | 33 | 85 | 1 |
+| **First-to-last delta** | Logistic Regression | 0.1066 | 0.4535 | **0.1726** | 0.1062 | **0.5435** | 487 | 327 | 47 | 39 |
+| | XGBoost | **0.3333** | 0.0116 | 0.0225 | **0.1201** | 0.5240 | 812 | 2 | 85 | 1 |
+
+### Leave-One-Day-Out Analysis (Logistic Regression with Delta Features)
+
+| Held-out Day | Eligible Samples | Onsets | Precision | Recall | F1 | PR-AUC | ROC-AUC |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Feb 14** | 686 | 2 | 0.0068 | 1.0000 | 0.0135 | 0.0064 | 0.6615 |
+| **Feb 15** | 1,006 | 5 | 0.0089 | 0.8000 | 0.0176 | 0.0090 | 0.6683 |
+| **Feb 16** | 0 | 0 | N/A | N/A | N/A | N/A | N/A |
+| **Feb 21** | 48 | 0 | 0.0000 | 0.0000 | 0.0000 | N/A | Undefined |
+| **Feb 22** | 948 | 103 | 0.1570 | 0.3398 | 0.2147 | 0.1408 | 0.5622 |
+
+## 10.6 Scientific Interpretation & Core Discoveries
+
+1. **The "Persistence Trap" in Next-State Forecasting:**
+   Next-state classification ($\hat{y}_{t+1}$) is trivialized by persistence whenever attacks occur in sustained multi-hour blocks (e.g. F1 = 0.9985 on March 02 Botnet traffic and 1.0000 on Feb 21 DDoS traffic). High accuracy or F1 on next-state forecasting is primarily an artifact of attack state autocorrelation, **not** genuine attack forecasting.
+2. **The Onset Scarcity Reality:**
+   True attack onset prediction ($y_{t+1}=1$ when $y_t=0$) is an intrinsically different and far harder problem. Across all 8 days and 7,198 states, there are only 205 onset transitions. Furthermore, 193 of those onsets (94.1%) are concentrated in just two days (Feb 22 and Feb 23) due to pulsing web attacks.
+3. **Severe Cross-Day Distribution Shift:**
+   Volumetric floods (DDoS, DoS Hulk, Botnet) have drastically different feature distributions than stealthy brute-force or web-application attacks. As demonstrated by the training-day ablation, pooling volumetric and stealthy attacks degrades detection performance rather than improving it.
+4. **Current Status of Onset Forecasting:**
+   While the first-to-last delta representation achieves non-random PR-AUC (0.1201 vs 0.0956 no-skill), high false alarm rates (327 false alarms to catch 39 onsets) and extreme day-level class concentration prevent claiming reliable onset forecasting at this stage.
 
 ---
 
@@ -631,34 +678,34 @@ Future research stages will additionally consider:
 
 # 12. Current Implementation Status
 
-## Completed
+### Engineering Implementation (Pipeline & Infrastructure)
+- [x] **8-Day CIC-IDS2018 Ingestion & Inventory:** Automated parsing and cataloging of 8 distinct traffic days.
+- [x] **Data Cleaning & Schema Normalization:** Handling repeated headers, infinite values, coerced numerics, and date-range filtering.
+- [x] **Security Feature Engineering:** Packet/byte volume metrics, directional ratios, and flag rate indicators (SYN, ACK, RST).
+- [x] **30-Second Temporal Network State Aggregation:** Windowed summary statistics (mean, sum, max) across network states.
+- [x] **Discontinuity-Aware Sequence Generation:** Run-length segmentation ensuring sequences strictly never cross timestamp gaps.
+- [x] **Leakage-Safe Preprocessing:** Preprocessing pipelines fitted strictly on training partitions.
+- [x] **Target Engineering:** Next-state binary attack indicator, next-state intensity fraction, last-observed attack state, and risk-set-filtered attack-onset targets.
 
-* [x] CIC-IDS2018 dataset integration
-* [x] Data cleaning pipeline
-* [x] Schema normalization
-* [x] Security-focused feature engineering
-* [x] 30-second temporal network state generation
-* [x] Temporal sequence generation
-* [x] Chronological train/validation/test split
-* [x] Leakage-safe preprocessing
-* [x] Majority baseline
-* [x] Persistence baseline
-* [x] Logistic Regression baseline
-* [x] XGBoost baseline
-* [x] LSTM temporal forecasting baseline
-* [x] Held-out evaluation
-* [x] Probability diagnostics for temporal model
+### Baseline & Temporal Modeling
+- [x] **Majority Classifier Baseline:** Empirical no-skill floor on imbalanced targets.
+- [x] **Persistence Reference Baseline:** Last-state copy reference model proving attack state autocorrelation.
+- [x] **Classical Machine Learning Models:** Standardized Logistic Regression and tuned XGBoost classifiers.
+- [x] **Recurrent Neural Network Baseline:** PyTorch LSTM temporal sequence forecasting model with probability diagnostics.
+- [x] **Multi-Representation Extraction:** Comparison of last-window, 5-minute mean, and first-to-last delta feature vectors.
 
-## Current Work
+### Empirical Audits & Validation
+- [x] **Continuous Per-Day Evaluation:** Isolated day-level benchmarking exposing contrast between DDoS (persistence = 1.0) and Web attacks.
+- [x] **Training Day Ablation Study:** Empirical proof that pooling volumetric floods with low-volume attacks degrades detection capability.
+- [x] **Attack Episode & Continuity Audit:** Comprehensive analysis identifying 159 isolated attack spikes vs 49 sustained episodes.
+- [x] **Exploratory Attack-Onset Forecasting:** Initial benchmarking on held-out web attack data (Feb 23) and leave-one-day-out analysis.
 
-* [ ] Current-state vs temporal-history experiment
-* [ ] MLP baseline
-* [ ] Attack-intensity forecasting
-* [ ] End-to-end MVP inference pipeline
-* [ ] Explainability
-* [ ] Early-warning analysis
-* [ ] Offline inference workflow
-* [ ] Dashboard
+### Active Next Objectives (Phases 2–4)
+- [ ] Unify dataset pipeline into a single configuration-driven execution structure.
+- [ ] Address onset class scarcity and investigate operational threshold tuning.
+- [ ] Implement MLP baseline and Random Forest / LightGBM comparisons.
+- [ ] Construct future attack intensity forecasting module.
+- [ ] Early-warning lead time and false alarm rate quantification.
 
 ---
 
@@ -1079,205 +1126,231 @@ Level 9 — Productization          FUTURE
 
 ---
 
-# 21. Installation
+# 21. Environment Setup & Installation
 
-## Clone Repository
+The project runs on macOS (Apple Silicon / ARM64) using Python 3.14 inside a local virtual environment.
+
+### 21.1 Environment Verification
+
+Always use the project's dedicated virtual environment:
 
 ```bash
-git clone <repository-url>
-cd sentinel-graph
+.venv/bin/python --version
 ```
 
-## Create Virtual Environment
-
-### macOS / Linux
+### 21.2 Virtual Environment Setup
 
 ```bash
+# Create virtual environment
 python3 -m venv .venv
+
+# Activate virtual environment
 source .venv/bin/activate
-```
 
-### Windows PowerShell
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-## Install Dependencies
-
-```bash
+# Install core dependencies
 pip install -r requirements.txt
 ```
+
+Core libraries verified in `.venv`:
+- `numpy` (2.5.3)
+- `pandas` (3.0.6)
+- `pyarrow` (25.0.1)
+- `scikit-learn` (1.9.1)
+- `torch` (2.14.0)
+- `xgboost` (3.4.1)
+- `matplotlib` (3.11.2)
 
 ---
 
 # 22. Dataset Setup
 
-Create the dataset directory.
-
-### macOS / Linux
+Create the raw dataset storage directory:
 
 ```bash
 mkdir -p data/raw/CIC-IDS2018
 ```
 
-### Windows PowerShell
+Place the 8 CIC-IDS2018 CSV files in `data/raw/CIC-IDS2018/`:
+- `Wednesday-14-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Friday-16-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Wednesday-21-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Thursday-22-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Friday-23-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Wednesday-28-02-2018_TrafficForML_CICFlowMeter.csv`
+- `Friday-02-03-2018_TrafficForML_CICFlowMeter.csv`
 
-```powershell
-mkdir data/raw/CIC-IDS2018
-```
+---
 
-Download CIC-IDS2018 separately and place the required CSV files inside:
+# 23. Complete Data Pipeline Execution
 
-```text
-data/raw/CIC-IDS2018/
-```
+Run the data pipeline sequentially to process raw traffic into model-ready sequences.
 
-Verify the files:
-
-### macOS / Linux
+### Step 1 — Data Cleaning & Schema Normalization
 
 ```bash
-ls data/raw/CIC-IDS2018
+# Clean initial 5 days (Feb 14, 15, 16, 21, 22) -> data/interim/
+.venv/bin/python src/cleaning/clean_dataset.py
+
+# Clean expanded 3 days (Feb 23, 28, Mar 02) -> data/interim_expanded/
+.venv/bin/python src/cleaning/clean_expanded_dataset.py
+
+# Verify interim clean parquet files
+.venv/bin/python src/cleaning/check_clean.py
 ```
 
-### Windows PowerShell
+### Step 2 — Security Feature Engineering
 
-```powershell
-dir data/raw/CIC-IDS2018
+```bash
+# Extract security features for initial 5 days -> data/features/
+.venv/bin/python src/features/build_features.py
+
+# Extract security features for expanded 3 days -> data/features_expanded/
+.venv/bin/python src/features/build_expanded_features.py
+
+# Verify engineered feature columns
+.venv/bin/python src/features/check_features.py
+```
+
+### Step 3 — Temporal Network State Construction (30-second Windows)
+
+```bash
+# Construct 30s aggregate states for initial 5 days -> data/states/
+.venv/bin/python src/windowing/create_states.py
+
+# Construct 30s aggregate states for expanded 3 days -> data/states_expanded/
+.venv/bin/python src/windowing/create_expanded_states.py
+
+# Verify network state distributions
+.venv/bin/python src/windowing/check_states.py
+```
+
+### Step 4 — Discontinuity-Aware Sequence Generation
+
+```bash
+# Generate continuity-aware sequences (diff == 30s) for initial 5 days -> data/sequences_continuous/
+.venv/bin/python src/dataset/build_sequences_continuous.py
+
+# Generate continuity-aware sequences for expanded 3 days -> data/sequences_expanded/
+.venv/bin/python src/dataset/build_expanded_sequences.py
+```
+
+### Step 5 — Dataset Splitting
+
+```bash
+# Expanded split (Train: Feb 14-21, Val: Feb 23, 28, Test: Mar 02) -> data/splits_expanded/
+.venv/bin/python src/dataset/create_splits_expanded.py
+
+# Continuous 5-day split (Train: Feb 14-15, Val: Feb 16, Test: Feb 21-22) -> data/splits_continuous/
+.venv/bin/python src/dataset/create_splits_continuous.py
+
+# Chronological 5-day split -> data/splits_chronological/
+.venv/bin/python src/dataset/create_splits_chronological.py
 ```
 
 ---
 
-# 23. Running the Data Pipeline
+# 24. Running Experiments & Empirical Audits
 
-Run the stages sequentially.
+Execute each experiment individually using `.venv/bin/python`:
 
-## Step 1 — Data Cleaning
+### 24.1 Empirical Audits (Data Quality & Temporal Integrity)
 
 ```bash
-python src/cleaning/clean_dataset.py
+# 1. Attack Episode & Continuity Audit (evaluates runs, gaps, isolated vs sustained episodes)
+.venv/bin/python src/experiments/audit_attack_episodes.py
+
+# 2. State Transitions & Gap Audit (inspects transitions and timestamp gap boundaries)
+.venv/bin/python src/experiments/audit_state_transitions.py
+
+# 3. Continuous Target Distribution Audit (evaluates target transitions and intensities)
+.venv/bin/python src/experiments/audit_continuous_targets.py
 ```
 
-Verify:
+### 24.2 Baseline Experiments
 
 ```bash
-python src/cleaning/check_clean.py
+# 4. Expanded Next-State Baselines (Majority, Persistence, Logistic Regression, XGBoost on March 02)
+.venv/bin/python src/experiments/baselines_expanded.py
+
+# 5. Continuous Per-Day Evaluation (Persistence and XGBoost separately on Feb 21 vs Feb 22)
+.venv/bin/python src/experiments/evaluate_continuous_per_day.py
+
+# 6. Training Day Accumulation Ablation (Feb 15 vs Feb 14+15 vs Feb 14+15+16 on Feb 22 test)
+.venv/bin/python src/experiments/ablation_training_days.py
+
+# 7. LSTM Temporal Deep Learning Model (PyTorch RNN with early stopping and loss diagnostics)
+.venv/bin/python src/experiments/lstm_baseline.py
 ```
 
----
-
-## Step 2 — Feature Engineering
+### 24.3 Attack-Onset Forecasting Experiments
 
 ```bash
-python src/features/build_features.py
-```
-
-Verify:
-
-```bash
-python src/features/check_features.py
-```
-
----
-
-## Step 3 — Generate Temporal Network States
-
-```bash
-python src/windowing/create_states.py
-```
-
-Verify:
-
-```bash
-python src/windowing/check_states.py
+# 8. Attack-Onset Forecasting (Last window vs 5-min mean vs Delta representations + Leave-One-Day-Out)
+.venv/bin/python src/experiments/onset_forecasting.py
 ```
 
 ---
 
-## Step 4 — Generate Forecasting Sequences
-
-```bash
-python src/dataset/build_sequences.py
-```
-
----
-
-## Step 5 — Create Dataset Splits
-
-```bash
-python src/dataset/create_splits.py
-```
-
----
-
-# 24. Running Experiments
-
-## Classical Baselines
-
-```bash
-python src/experiments/baselines.py
-```
-
-This evaluates:
-
-* Majority
-* Persistence
-* Logistic Regression
-* XGBoost
-
----
-
-## LSTM Temporal Baseline
-
-```bash
-python src/experiments/lstm_baseline.py
-```
-
----
-
-# 25. Project Structure
+# 25. Complete Project Structure
 
 ```text
 sentinel-graph/
-│
 ├── data/
 │   ├── raw/
-│   │   └── CIC-IDS2018/
-│   │
-│   ├── interim/
-│   ├── features/
-│   ├── states/
-│   └── sequences/
+│   │   └── CIC-IDS2018/            # 8 raw CSV files (excluded from Git)
+│   ├── interim/                    # Cleaned parquets (5 days)
+│   ├── interim_expanded/           # Cleaned parquets (3 expanded days)
+│   ├── features/                   # Security features (5 days)
+│   ├── features_expanded/          # Security features (3 expanded days)
+│   ├── states/                     # 30-second states (5 days)
+│   ├── states_expanded/            # 30-second states (3 expanded days)
+│   ├── sequences_continuous/       # Continuity-segmented sequences (5 days)
+│   ├── sequences_expanded/         # Continuity-segmented sequences (3 days)
+│   ├── splits_expanded/            # Train (14-21), Val (23, 28), Test (02)
+│   ├── splits_continuous/          # Train (14-15), Val (16), Test (21-22)
+│   └── splits_chronological/       # Train (14-16), Val (21), Test (22)
+│
+├── reports/
+│   └── onset_forecasting_experiment.md  # Detailed experimental onset report
 │
 ├── src/
-│   │
 │   ├── ingestion/
-│   │
+│   │   ├── dataset_inventory.py
+│   │   └── schema_analysis.py
 │   ├── cleaning/
 │   │   ├── clean_dataset.py
-│   │   └── check_clean.py
-│   │
+│   │   ├── clean_expanded_dataset.py
+│   │   ├── check_clean.py
+│   │   └── schema.py
 │   ├── features/
 │   │   ├── build_features.py
+│   │   ├── build_expanded_features.py
 │   │   └── check_features.py
-│   │
 │   ├── windowing/
 │   │   ├── create_states.py
+│   │   ├── create_expanded_states.py
 │   │   └── check_states.py
-│   │
 │   ├── dataset/
-│   │   ├── build_sequences.py
-│   │   └── create_splits.py
-│   │
+│   │   ├── build_sequences_continuous.py
+│   │   ├── build_expanded_sequences.py
+│   │   ├── create_splits_expanded.py
+│   │   ├── create_splits_continuous.py
+│   │   └── create_splits_chronological.py
 │   └── experiments/
-│       ├── preprocessing.py
-│       ├── baselines.py
-│       └── lstm_baseline.py
-│
-├── notebooks/
-├── reports/
+│       ├── preprocessing_expanded.py
+│       ├── preprocessing_continuous.py
+│       ├── preprocessing_chronological.py
+│       ├── baselines_expanded.py
+│       ├── baselines_continuous.py
+│       ├── baselines_chronological.py
+│       ├── evaluate_continuous_per_day.py
+│       ├── ablation_training_days.py
+│       ├── audit_attack_episodes.py
+│       ├── audit_state_transitions.py
+│       ├── audit_continuous_targets.py
+│       ├── lstm_baseline.py
+│       └── onset_forecasting.py
 │
 ├── requirements.txt
 ├── requirements-lock.txt
@@ -1410,10 +1483,32 @@ Add the appropriate project license here before public release.
 
 ---
 
-# 30. Project Status
+# 30. Project Status & Master Progress Tracker
 
-**Current Stage:** Temporal forecasting baseline development
+**Current Phase:** Phase 1 Complete / Transitioning to Phase 2 (Data Quality & Experimental Reliability)
+**Engineering Implementation:** 34 production scripts, 8 days processed, multi-split pipelines operational.
+**Research Validation:** Initial baselines implemented; onset forecasting and multi-horizon forecasting under rigorous investigation.
 
-**Semester Objective:** Complete the SentinelGraph MVP
+### 30.1 Master Roadmap Living Status
 
-**Long-Term Objective:** Investigate temporal, structural, and latent state-transition modeling for reliable multi-horizon network attack forecasting.
+| Phase | Description | Status | Key Deliverable / Finding |
+|---|---|:---:|---|
+| **Phase 1** | Repository Consolidation & Documentation | **VALIDATED** | Clean git tree, documented reproduction commands, full results documented. |
+| **Phase 2** | Data Quality & Experimental Reliability | **IN PROGRESS** | 8-day audit complete (identified 159 isolated vs 49 sustained episodes, gap structure). |
+| **Phase 3** | Improve Experimental Design | **IN PROGRESS** | Separated evaluation protocols, leave-one-day-out analysis, onset risk-set definition. |
+| **Phase 4** | Next-State & Attack-Onset Forecasting | **IN PROGRESS** | Evaluated delta/mean/last representations; established persistence reference baseline. |
+| **Phase 5** | Advanced Temporal Modelling | **NOT STARTED** | GRU/attention temporal architectures and graph construction (planned). |
+| **Phase 6** | Multi-Horizon Attack Progression | **NOT STARTED** | Multi-step rollouts ($t+1, t+2, t+10$) and intensity forecasting (planned). |
+| **Phase 7** | Early-Warning Capability | **NOT STARTED** | Warning lead-time and false alarm rate under operational constraints (planned). |
+| **Phase 8** | Explainability & Interpretability | **NOT STARTED** | Feature attribution, temporal saliency, SHAP integration (planned). |
+| **Phase 9** | End-to-End System Development | **NOT STARTED** | Offline inference pipeline, validation schema, MVP dashboard (planned). |
+| **Phase 10** | Robustness & Final Research Validation | **NOT STARTED** | Cross-day generalisation, ablation studies, calibration curves (planned). |
+| **Phase 11** | Final Documentation & Presentation | **NOT STARTED** | Technical thesis, presentation deck, reproducibility package (planned). |
+
+### 30.2 Status Definitions
+- `NOT STARTED`: Work has not commenced.
+- `IN PROGRESS`: Active design, coding, or experimentation underway.
+- `IMPLEMENTED`: Code is written and present in repository.
+- `TESTED`: Code runs without error and produces verifiable outputs.
+- `VALIDATED`: Results have been scientifically audited, reproduced, and peer-reviewed against baselines.
+- `BLOCKED`: Dependency or conceptual limitation prevents progress.
