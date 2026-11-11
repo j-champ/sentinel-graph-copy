@@ -1497,13 +1497,13 @@ Add the appropriate project license here before public release.
 | **Phase 2** | Data Quality & Experimental Reliability | **VALIDATED** | 8-day audit report ([`reports/data_quality_and_temporal_integrity_report.md`](file:///Users/jasmithav/Downloads/sentinel-graph-copy/reports/data_quality_and_temporal_integrity_report.md)), zero-traffic imputation. |
 | **Phase 3** | Improve Experimental Design | **VALIDATED** | Leakage-safe chronological holdout protocol, onset risk-set protocol, validation-tuned thresholds. |
 | **Phase 4** | Next-State & Attack-Onset Forecasting | **VALIDATED** | Multi-model evaluation (Majority, Persistence, LogReg, RF, Native XGBoost, MLP, LSTM, GRU). |
-| **Phase 5** | Advanced Temporal Modelling | **VALIDATED** | PyTorch 2-layer LSTM & GRU models trained on Apple Silicon MPS with BCE+L1 multi-task loss. |
+| **Phase 5** | Advanced Temporal & Graph Modelling | **VALIDATED** | PyTorch LSTM/GRU & Spatio-Temporal GNN (ST-GNN) over 16 port service nodes ([`reports/graph_representation_study.md`](reports/graph_representation_study.md)). |
 | **Phase 6** | Multi-Horizon Attack Progression | **VALIDATED** | Multi-horizon rollout ($h \in \{1, 2, 4, 10\}$: 30s to 5m) and continuous intensity regression (MAE $\approx$ 0.118). |
 | **Phase 7** | Early-Warning Capability | **VALIDATED** | PyTorch LSTM delivers 42.4% Recall at $\text{FPR} \le 1\%$ (< 0.8 false alarms/hr) and 81.9% Recall at $\text{FPR} \le 5\%$. |
 | **Phase 8** | Explainability & Interpretability | **VALIDATED** | Top-10 security feature attributions and 5-minute temporal step gradient distributions. |
-| **Phase 9** | End-to-End System Development | **VALIDATED** | Production inference engine ([`src/pipeline/inference.py`](file:///Users/jasmithav/Downloads/sentinel-graph-copy/src/pipeline/inference.py)) and visual console ([`src/dashboard/cli_dashboard.py`](file:///Users/jasmithav/Downloads/sentinel-graph-copy/src/dashboard/cli_dashboard.py)). |
-| **Phase 10** | Robustness & Final Research Validation | **VALIDATED** | Comprehensive unified benchmark report ([`reports/unified_benchmark_results.md`](file:///Users/jasmithav/Downloads/sentinel-graph-copy/reports/unified_benchmark_results.md)). |
-| **Phase 11** | Final Documentation & Presentation | **VALIDATED** | Final research thesis & engineering report ([`reports/sentinel_graph_final_research_report.md`](file:///Users/jasmithav/Downloads/sentinel-graph-copy/reports/sentinel_graph_final_research_report.md)). |
+| **Phase 9** | End-to-End System Development | **VALIDATED** | Production inference engine ([`src/pipeline/inference.py`](src/pipeline/inference.py)), CLI radar ([`src/dashboard/cli_dashboard.py`](src/dashboard/cli_dashboard.py)), and interactive web console ([`dashboard/index.html`](dashboard/index.html)). |
+| **Phase 10** | Robustness & Final Research Validation | **VALIDATED** | Comprehensive unified benchmark report ([`reports/unified_benchmark_results.md`](reports/unified_benchmark_results.md)), 10-test automated regression suite (`tests/test_pipeline.py`). |
+| **Phase 11** | Final Documentation & Presentation | **VALIDATED** | Final research thesis & engineering report ([`reports/sentinel_graph_final_research_report.md`](reports/sentinel_graph_final_research_report.md)). |
 
 ### 30.2 Status Definitions
 - `NOT STARTED`: Work has not commenced.

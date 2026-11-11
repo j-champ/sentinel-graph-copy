@@ -27,7 +27,17 @@ class SentinelRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
 
     def do_GET(self):
-        if self.path == "/health":
+        if self.path in ["/", "/dashboard"]:
+            dash_path = BASE_DIR / "dashboard/index.html"
+            if dash_path.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                with open(dash_path, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+            self._send_json(404, {"error": "Dashboard HTML not found."})
+        elif self.path == "/health":
             self._send_json(200, {
                 "status": "healthy",
                 "system": "SentinelGraph Attack Forecasting MVP",

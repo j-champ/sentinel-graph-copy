@@ -172,6 +172,20 @@ class SentinelInferencePipeline:
             }
         }
 
+    def predict_states_dataframe(self, df: pd.DataFrame) -> dict:
+        """
+        Takes a pandas DataFrame of 10 consecutive temporal states with columns in FEATURES.
+        Returns the forecast dictionary.
+        """
+        if len(df) != 10:
+            raise ValueError(f"Expected DataFrame with 10 rows (10 consecutive states), got {len(df)}")
+        for col in FEATURES:
+            if col not in df.columns:
+                raise ValueError(f"Missing required feature column: {col}")
+        seq_array = df[FEATURES].to_numpy(dtype=np.float32)
+        return self.predict_sequence(seq_array)
+
+
 
 def test_pipeline():
     print("Testing SentinelInferencePipeline...")
