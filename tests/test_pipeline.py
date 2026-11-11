@@ -155,6 +155,30 @@ class TestTemporalModelArchitecture(unittest.TestCase):
         self.assertIn("host", sig.parameters)
         self.assertIn("port", sig.parameters)
 
+    def test_frontend_app_build_exists(self):
+        app_html = Path("frontend/dist/index.html")
+        self.assertTrue(app_html.exists(), "frontend/dist/index.html must exist")
+        with open(app_html, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('id="root"', content)
+        self.assertIn("SentinelGraph", content)
+
+    def test_api_server_routes(self):
+        # Verify all target files served by do_GET exist
+        dash_path = Path("dashboard/index.html")
+        app_path = Path("frontend/dist/index.html")
+        metrics_path = Path("reports/unified_benchmark_results.md")
+
+        self.assertTrue(dash_path.exists(), "Route /dashboard target must exist")
+        self.assertTrue(app_path.exists(), "Route /app target must exist")
+        self.assertTrue(metrics_path.exists(), "Route /metrics target must exist")
+
+        # Verify frontend assets exist
+        assets_dir = Path("frontend/dist/assets")
+        self.assertTrue(assets_dir.exists(), "Frontend dist assets must exist")
+        assets = list(assets_dir.glob("*"))
+        self.assertGreater(len(assets), 0, "At least 1 bundled asset must exist")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,43 @@ class SentinelRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read())
                 return
             self._send_json(404, {"error": "Dashboard HTML not found."})
+            return
+        elif self.path in ["/app", "/app/"]:
+            spa_index = BASE_DIR / "frontend/dist/index.html"
+            if spa_index.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                with open(spa_index, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+            self._send_json(404, {"error": "Frontend build not found. Run 'npm --prefix frontend run build' first."})
+            return
+        elif self.path.startswith("/assets/") or self.path.startswith("/app/assets/"):
+            rel_path = self.path.replace("/app/assets/", "").replace("/assets/", "")
+            asset_path = BASE_DIR / "frontend/dist/assets" / rel_path
+            if asset_path.exists() and asset_path.is_file():
+                content_type = "application/octet-stream"
+                if asset_path.suffix == ".js":
+                    content_type = "application/javascript; charset=utf-8"
+                elif asset_path.suffix == ".css":
+                    content_type = "text/css; charset=utf-8"
+                elif asset_path.suffix == ".svg":
+                    content_type = "image/svg+xml"
+                elif asset_path.suffix == ".png":
+                    content_type = "image/png"
+                elif asset_path.suffix in [".woff", ".woff2"]:
+                    content_type = f"font/{asset_path.suffix[1:]}"
+
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Cache-Control", "public, max-age=31536000")
+                self.end_headers()
+                with open(asset_path, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+            self._send_json(404, {"error": f"Asset {rel_path} not found."})
+            return
         elif self.path == "/health":
             self._send_json(200, {
                 "status": "healthy",
@@ -81,19 +118,29 @@ class SentinelRequestHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "Endpoint not found."})
 
 
-def run_server(host="", port=8080):
+def run_server(port=8080, host=""):
     global PIPELINE
+    # Flexible argument parsing if host and port are swapped
+    if isinstance(port, str) and not port.isdigit():
+        host, port = port, (host if isinstance(host, int) else 8080)
+    port = int(port)
+    host = str(host)
+
     print(f"Initializing SentinelGraph Inference Engine...")
     PIPELINE = SentinelInferencePipeline()
     server_address = (host, port)
+    HTTPServer.allow_reuse_address = True
     httpd = HTTPServer(server_address, SentinelRequestHandler)
     print(f"SentinelGraph REST API Server listening on port {port}...")
-    print(f"  Health Check: http://localhost:{port}/health")
-    print(f"  Forecast Endpoint: POST http://localhost:{port}/forecast")
-    print(f"  Metrics Endpoint: http://localhost:{port}/metrics")
+    print(f"  Intelligence Platform: http://localhost:{port}/app/")
+    print(f"  Legacy Dashboard:      http://localhost:{port}/dashboard")
+    print(f"  Health Check:          http://localhost:{port}/health")
+    print(f"  Forecast Endpoint:     POST http://localhost:{port}/forecast")
+    print(f"  Metrics Endpoint:      http://localhost:{port}/metrics")
     httpd.serve_forever()
 
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
-    run_server(port)
+    run_server(port=port)
+

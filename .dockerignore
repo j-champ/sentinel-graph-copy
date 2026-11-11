@@ -1,0 +1,28 @@
+# Large raw and interim datasets (not needed for production inference)
+data/raw/
+data/interim/
+data/interim_expanded/
+data/features/
+data/features_expanded/
+data/sequences/
+data/sequences_continuous/
+data/sequences_expanded/
+data/splits/
+data/splits_chronological/
+data/splits_continuous/
+data/splits_expanded/
+
+# Environment and version control
+.git/
+.venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Frontend dev artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/*.png
+.DS_Store
