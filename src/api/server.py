@@ -81,11 +81,11 @@ class SentinelRequestHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "Endpoint not found."})
 
 
-def run_server(port=8080):
+def run_server(host="", port=8080):
     global PIPELINE
     print(f"Initializing SentinelGraph Inference Engine...")
     PIPELINE = SentinelInferencePipeline()
-    server_address = ("", port)
+    server_address = (host, port)
     httpd = HTTPServer(server_address, SentinelRequestHandler)
     print(f"SentinelGraph REST API Server listening on port {port}...")
     print(f"  Health Check: http://localhost:{port}/health")

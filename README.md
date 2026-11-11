@@ -1502,7 +1502,7 @@ Add the appropriate project license here before public release.
 | **Phase 7** | Early-Warning Capability | **VALIDATED** | PyTorch LSTM delivers 42.4% Recall at $\text{FPR} \le 1\%$ (< 0.8 false alarms/hr) and 81.9% Recall at $\text{FPR} \le 5\%$. |
 | **Phase 8** | Explainability & Interpretability | **VALIDATED** | Top-10 security feature attributions and 5-minute temporal step gradient distributions. |
 | **Phase 9** | End-to-End System Development | **VALIDATED** | Production inference engine ([`src/pipeline/inference.py`](src/pipeline/inference.py)), CLI radar ([`src/dashboard/cli_dashboard.py`](src/dashboard/cli_dashboard.py)), and interactive web console ([`dashboard/index.html`](dashboard/index.html)). |
-| **Phase 10** | Robustness & Final Research Validation | **VALIDATED** | Comprehensive unified benchmark report ([`reports/unified_benchmark_results.md`](reports/unified_benchmark_results.md)), 10-test automated regression suite (`tests/test_pipeline.py`). |
+| **Phase 10** | Robustness & Final Research Validation | **VALIDATED** | Comprehensive unified benchmark report ([`reports/unified_benchmark_results.md`](reports/unified_benchmark_results.md)), 13-test automated regression suite (`tests/test_pipeline.py`). |
 | **Phase 11** | Final Documentation & Presentation | **VALIDATED** | Final research thesis & engineering report ([`reports/sentinel_graph_final_research_report.md`](reports/sentinel_graph_final_research_report.md)). |
 
 ### 30.2 Status Definitions

@@ -148,6 +148,13 @@ class TestTemporalModelArchitecture(unittest.TestCase):
         self.assertTrue(root_dash.exists(), "dashboard/index.html must exist")
         self.assertTrue(src_dash.exists(), "src/dashboard/web_dashboard.html must exist")
 
+    def test_run_server_signature(self):
+        import inspect
+        from src.api.server import run_server
+        sig = inspect.signature(run_server)
+        self.assertIn("host", sig.parameters)
+        self.assertIn("port", sig.parameters)
+
 
 if __name__ == "__main__":
     unittest.main()
