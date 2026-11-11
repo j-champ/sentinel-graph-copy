@@ -38,8 +38,10 @@ def render_frame(step, total, timestamp, forecast, actual_attack, actual_intensi
     print(f" Replay Step: {step:04d}/{total:04d} | Target Timestamp: {timestamp}")
     print("=" * 80)
 
+    mitre = forecast.get("mitre_attack", {})
     print(f"\n[EARLY-WARNING THREAT STATUS]: {status_tag:<12} (Operational Threshold: {warning['operational_threshold_active']})")
     print(f"Predicted Attack Intensity: {forecast['predicted_intensity']*100:5.2f}% | Actual Threat State: {'ATTACK' if actual_attack else 'BENIGN'} ({actual_intensity*100:.2f}%)")
+    print(f"MITRE ATT&CK Predicted Stage: {mitre.get('tactic', 'N/A')} [{mitre.get('technique_id', 'N/A')}]")
 
     print("\n--- MULTI-HORIZON ATTACK PROBABILITY ROLLOUT ---")
     print(f" Horizon +30s  : [{make_bar(h30)}] {h30*100:5.1f}%  Risk")

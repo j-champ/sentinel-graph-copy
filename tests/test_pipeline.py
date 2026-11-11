@@ -41,6 +41,9 @@ class TestSentinelInferencePipeline(unittest.TestCase):
         self.assertIn("predicted_intensity", result)
         self.assertIn("xgb_secondary_risk", result)
         self.assertIn("early_warning", result)
+        self.assertIn("mitre_attack", result)
+        self.assertIn("tactic", result["mitre_attack"])
+        self.assertIn("technique_id", result["mitre_attack"])
         self.assertIn("top_attributions", result)
 
         horizons = result["forecast_horizons"]

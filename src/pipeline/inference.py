@@ -149,6 +149,40 @@ class SentinelInferencePipeline:
             for idx in top_indices
         ]
 
+        # MITRE ATT&CK Stage Mapping based on predicted risk, intensity, and dominant feature dynamics
+        if alert_level == "NORMAL":
+            mitre_stage = {
+                "tactic": "None (Benign)",
+                "technique_id": "N/A",
+                "description": "Baseline operational network activity within normal parameters."
+            }
+        else:
+            dominant_feat = top_features[0]["feature"]
+            if "syn" in dominant_feat or "rst" in dominant_feat:
+                mitre_stage = {
+                    "tactic": "Reconnaissance / Initial Probe",
+                    "technique_id": "T1595 / T1046",
+                    "description": "Port scanning or TCP flag-probing pattern detecting active service ports."
+                }
+            elif "flow_duration" in dominant_feat and pred_intensity < 0.4:
+                mitre_stage = {
+                    "tactic": "Initial Access / Credential Access",
+                    "technique_id": "T1110 / T1190",
+                    "description": "Brute-force authentication attempts or network service exploitation."
+                }
+            elif pred_intensity >= 0.7 or "packet_rate" in dominant_feat or "total_packets" in dominant_feat:
+                mitre_stage = {
+                    "tactic": "Impact / Denial of Service",
+                    "technique_id": "T1498 / T1499",
+                    "description": "Volumetric saturation flood degrading network availability and bandwidth."
+                }
+            else:
+                mitre_stage = {
+                    "tactic": "Lateral Movement / Infiltration",
+                    "technique_id": "T1021 / T1043",
+                    "description": "Internal network traversal or command & control channel establishment."
+                }
+
         return {
             "forecast_horizons": {
                 "30s_ahead": round(risk_h1, 4),
@@ -164,6 +198,7 @@ class SentinelInferencePipeline:
                 "operational_threshold_active": 0.35,
                 "expected_fpr": "<= 5%",
             },
+            "mitre_attack": mitre_stage,
             "top_attributions": top_features,
             "current_state_summary": {
                 "total_packets": float(sequence[-1, 1]),  # total_packets_sum
